@@ -10,7 +10,6 @@ require("tidyverse")
 # Data uploading
 nochim1 <- read.csv("C:/Users/juanj/Documents/Abejas-Microbiota/Abejas-Microbiota/Analisis/seqtab_nochim_transp_1.csv", row.names = 1, header = TRUE)
 taxa <- read.csv("C:/Users/juanj/Documents/Abejas-Microbiota/Abejas-Microbiota/Analisis/taxa_bee_16s.csv", row.names = 1)
-path <- "C:/Users/juanj/OneDrive/Escritorio/Abejas-Microbiota/Abejas-Microbiota/Analisis"
 metadata <- read.csv("C:/Users/juanj/Documents/Abejas-Microbiota/Abejas-Microbiota/Analisis/metadata_bee_16s.csv", row.names = 1)
 ps# Matrixes
 nochim_mat <- as.matrix(nochim1)
@@ -76,14 +75,6 @@ sample_data(ps_rare)
 # Correr ordenación de nuevo
 ord_nmds <- ordinate(ps_rare, method = "NMDS", distance = "bray")
 
-# Graficar
-plot_ordination(ps_rare, ord_nmds, 
-                type = "samples", 
-                color = "Treatment") +
-  geom_point(size = 3, alpha = 0.7) +
-  labs(title = "NMDS - Bray Curtis",
-       subtitle = paste("Stress =", round(ord_nmds$stress, 3))) +
-  theme_bw()
 # Ver si la metadata está en ps_rare
 head(sample_data(ps_rare))
 
