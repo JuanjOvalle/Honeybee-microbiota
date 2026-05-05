@@ -17,9 +17,8 @@ nochim_mat <- as.matrix(nochim1)
 taxa_mat <- as.matrix(taxa)
 
 # Phyloseq database
-ps <- phyloseq(
-  otu_table(nochim_mat, taxa_are_rows = TRUE),
-  tax_table(taxa_mat), 
+ps <- phyloseq(otu_table(nochim_mat, taxa_are_rows = TRUE),
+  tax_table(taxa_mat)
 )
 
 ps
