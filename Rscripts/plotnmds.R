@@ -85,13 +85,15 @@ nmds_points <- as.data.frame(ord_nmds$points)
 nmds_points$Treatment <- sample_data(ps_rare)$Treatment
 
 # Graficar
-ggplot(nmds_points, aes(x = MDS1, y = MDS2, color = Treatment)) +
+graph_nmds_all <- ggplot(nmds_points, aes(x = MDS1, y = MDS2, color = Treatment)) +
   geom_point(size = 3, alpha = 0.7) +  
   stat_ellipse(aes(group = Treatment), 
         type = "t",level = 0.95)+
   labs(title = "NMDS - Bray Curtis",
        subtitle = paste("Stress =", round(ord_nmds$stress, 3))) +
   theme_bw()
+
+ggsave("Figures/graph_nmds_all.jpg", plot = graph_nmds_all)
 
 pcoa_points <- as.data.frame(ord_pcoa$vectors)
 pcoa_points$Treatment <- sample_data(ps_rare)$Treatment
