@@ -1,3 +1,8 @@
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#                                                                              #
+#                                                                              #
+#                                                                              #
+#                                                                              #
 # Libraries
 require("ggplot2")
 require("BiocManager")
@@ -11,7 +16,8 @@ require("tidyverse")
 nochim1 <- read.csv("C:/Users/juanj/Documents/Abejas-Microbiota/Abejas-Microbiota/Analisis/seqtab_nochim_transp_1.csv", row.names = 1, header = TRUE)
 taxa <- read.csv("C:/Users/juanj/Documents/Abejas-Microbiota/Abejas-Microbiota/Analisis/taxa_bee_16s.csv", row.names = 1)
 metadata <- read.csv("C:/Users/juanj/Documents/Abejas-Microbiota/Abejas-Microbiota/Analisis/metadata_bee_16s.csv", row.names = 1)
-ps# Matrixes
+
+# Matrixes
 nochim_mat <- as.matrix(nochim1)
 taxa_mat <- as.matrix(taxa)
 
@@ -104,6 +110,75 @@ ggplot(pcoa_points, aes(x = Axis.1, y = Axis.2, color = Treatment)) +
                type = "t",level = 0.95)+
   theme_bw()
 
+bray_dist <- phyloseq::distance(ps_rare, method = "bray")
 
-metadata %>% 
-  group_by(Treatment)
+permanova <- adonis2(bray_dist ~ Treatment,
+                     data = as.data.frame(metadata),
+                     permutations = 999)
+permanova
+
+sample_data(ps_rare)$Treated <- ifelse(
+  sample_data(ps_rare)$Treatment == "Control", 
+  "Control", 
+  "Treated"
+)
+
+bray_dist <- phyloseq::distance(ps_rare, method = "bray")
+
+adonis2(bray_dist ~ Treatment,
+        data = as.data.frame(metadata),
+        permutations = 999)
+
+nrow(metadata)
+nsamples(ps_rare)
+
+ps_uni <- subset_samples(ps_rare, 
+                         Treatment %in% c("Control_(N)", "Rutina", "Imidacloprid", "Kaempferol", 
+                                          "p-Coumaric_acid", "Fipronil", "Sugar", "Deltametrina", "Glifosato"))
+
+ord_nmds_uni <- ordinate(ps_uni, method = "NMDS", distance = "bray")
+bray_uni <- phyloseq::distance(ps_uni, method = "bray")
+
+#Pesticides vs pesticides + flavonoids
+
+adonis2(bray_uni ~ Treatment,
+        data = data.frame(sample_data(ps_uni)),
+        permutations = 999)
+
+ps_pesticides <- subset_samples(ps_rare,
+                           Treatment %in% c("Imidacloprid", "Fipronil", "Deltametrina", "Glifosato", "Kaempferol+Deltametrina", "Kaempferol+Fipronil", "Kaempferol+Glifosato", "Kaempferol+Imidaclorid", "	
+p-Coumaric_acid+Deltametrina", "p-Coumaric_acid+Fipronil", "p-Coumaric_acid+Glifosato", "p-Coumaric_acid+Imidaclorid", "Rutina+Deltametrina", "Rutina+Fipronil", "	
+Rutina+Glifosato", "Rutina+Imidaclorid")) 
+
+bray_pesticides <- phyloseq::distance(ps_pesticides, method = "bray")
+
+adonis2(bray_pesticides ~ Treatment,
+        data = data.frame(sample_data(ps_pesticides)),
+        permutations = 999)
+
+#Per molecule analisis
+
+ps_monomolecule <- function()
+
+ps_mol1 <- subset_samples(ps_rare,
+                          Treatment %in% c("Control", "mol1"))
+
+bray_mol1 <- phyloseq::distance(ps_mol1, method = "bray")
+
+adonis2(bray_mol1 ~ Treatment,
+        data = data.frame(sample_data(ps_mol1)),
+        permutations = 999)
+
+#Graph monomolecules
+
+nmds_points_mono <- as.data.frame(ord_nmds_uni$points)
+nmds_points_mono$Treatment <- sample_data(ps_uni)$Treatment
+
+# Graficar
+graph_nmds_uni <- ggplot(nmds_points_mono, aes(x = MDS1, y = MDS2, color = Treatment)) +
+  geom_point(size = 3, alpha = 0.7) +  
+  stat_ellipse(aes(group = Treatment), 
+               type = "t",level = 0.95)+
+  labs(title = "NMDS - Bray Curtis",
+       subtitle = paste("Stress =", round(ord_nmds_uni$stress, 3))) +
+  theme_bw()
