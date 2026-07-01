@@ -31,6 +31,7 @@ require("tidyverse")
 require("pheatmap")
 require("ggsignif")
 require("DESeq2")
+require("OmicFlow")
 
 # 1. Data uploading, processing and rarefaction----
 
@@ -62,7 +63,7 @@ table(tax_table(ps)[, "Phylum"])
 # Rarefaction
 ps_rare <- rarefy_even_depth(ps, rngseed = 123)
 
- # 1.1 Subset creation from the main phyloseq----
+ # 1.1 Subset creation from the main rarefied phyloseq----
 
 # Control and all individual molecules
 ps_uni <- subset_samples(ps_rare, 
@@ -79,7 +80,6 @@ ps_phyto <- subset_samples(ps_rare,
                                             "p-Coumaric_acid", "Sugar"))
 
 # Control, pesticides and administered molecules
-
 ps_pscoa <- subset_samples(ps_rare,
                            !(sample_names(ps_rare) %in% sample_names(ps_phyto)))
 
@@ -140,7 +140,21 @@ alpha_div_phyto  <- estimate_richness(ps_phyto,
 alpha_div_phyto$Treatment <- as.character(sample_data(ps_phyto)$Treatment)
 alpha_div_phyto
 
-# Kruskall-wallis test for each individual phytoicide, not significant for any treatment
+# Kruskall-wallis test for each individual phytochemocal, not significant for any treatment
+kruskal.test(Shannon ~ Treatment, data = alpha_div_phyto)
+kruskal.test(Observed ~ Treatment, data = alpha_div_phyto)
+kruskal.test(Chao1 ~ Treatment, data = alpha_div_phyto)
+
+# Alpha diversity for each individual phytochemical
+alpha_div_phyto  <- estimate_richness(ps_phyto, 
+                                      measures = c("Observed", 
+                                                   "Shannon", 
+                                                   "Simpson",
+                                                   "Chao1"))
+alpha_div_phyto$Treatment <- as.character(sample_data(ps_phyto)$Treatment)
+alpha_div_phyto
+
+# Kruskall-wallis test for each individual phytochemocal, not significant for any treatment
 kruskal.test(Shannon ~ Treatment, data = alpha_div_phyto)
 kruskal.test(Observed ~ Treatment, data = alpha_div_phyto)
 kruskal.test(Chao1 ~ Treatment, data = alpha_div_phyto)
@@ -171,12 +185,12 @@ View(distances_uni)
 
 # For all treatment  !!!!!!Corregir la ordinación de los objetos, permanova no consistente!!!!!
 permanova_all <- adonis2(bray_all ~ Treatment,
-                         data = as.data.frame(metadata_ordered),
+                         data = data.frame(sample_data(ps_rare)),
                          permutations = 999)
 
 # For all individual molecules
 permanova_uni <- adonis2(bray_uni ~ sample_data(ps_uni)$Treatment,
-                         data = as.data.frame(metadata),
+                         data = as.data.frame(sample_data(ps_uni)),
                          permutations = 999)
 
 #Bray curtis distance represented
@@ -192,12 +206,12 @@ View(distances_all)
 
 dist_df <- as.data.frame(as.matrix(distances_all))
 
-pairwise_adonis(
-  ps_uni,
-  Treatment,
+pair2 <- pairwise_adonis(
+  bray_all,
+  treatments,
   metadata = NULL,
   perm_design = NULL,
-  p.adjust.method = "bonferroni",
+  p.adjust.method = "BH",
   perm = 999
 )
 
@@ -232,14 +246,15 @@ plot_bar(ps_genus, fill = "Genus", x = "Treatment") +
 
 
 
-pairwise_adonis(
-  ps_uni,
-  Treatment,
-  metadata = NULL,
+pairwise <- pairwise_adonis(
+  bray_all,
+  treatments,
+  metadata = metadata,
   perm_design = NULL,
   p.adjust.method = "bonferroni",
   perm = 999
 )
+
 
 # 4 DeSeq analysis----
 
@@ -333,10 +348,10 @@ bray_uni <- phyloseq::distance(ps_uni, method = "bray")
 bray_matrix <- as.matrix(bray_uni)
 
 # Agregar tratamiento a la matriz
-treatments <- data.frame(sample_data(ps_uni))$Treatment
+treatments <- data.frame(sample_data(ps_rare))$Treatment
 
 # Distancia promedio entre cada par de tratamientos
-distances_all <- meandist(bray_uni, treatments)
+distances_all <- meandist(bray_all, treatments)
 
 View(distances_all)
 
@@ -410,4 +425,44 @@ alpha_div %>%
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "none")
+
+# Separar los pares en dos columnas
+pairwise_df <- pair2 %>%
+  separate(pairs, into = c("Treatment1", "Treatment2"), sep = " vs ")
+
+# Crear matriz simétrica de p-values ajustados
+heatmap_df <- bind_rows(
+  pairwise_df %>% select(Treatment1, Treatment2, p.value),
+  pairwise_df %>% rename(Treatment1 = Treatment2, 
+                         Treatment2 = Treatment1) %>% 
+    select(Treatment1, Treatment2, p.value)
+)
+
+
+# Crear el df simétrico paso a paso
+df1 <- pairwise_df %>% 
+  select(Treatment1, Treatment2, p.value)
+
+df2 <- pairwise_df %>% 
+  select(Treatment1 = Treatment2, 
+         Treatment2 = Treatment1, 
+         p.value)
+
+heatmap_df <- bind_rows(df1, df2)
+
+head(heatmap_df)
+
+# Graficar
+ggplot(heatmap_df, aes(x = Treatment1, y = Treatment2, fill = p.value)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = round(p.value, 3)), size = 3) +
+  scale_fill_gradient2(low = "#d73027", 
+                       mid = "#ffffff",
+                       high = "#ffffff",
+                       midpoint = 0.3,
+                       name = "p.value") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = NULL, y = NULL,
+       title = "Pairwise PERMANOVA - Bray Curtis")
 # Relative abundance
