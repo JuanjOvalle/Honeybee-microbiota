@@ -32,6 +32,7 @@ require("pheatmap")
 require("ggsignif")
 require("DESeq2")
 require("OmicFlow")
+require ("ggrepel")
 
 # 1. Data uploading, processing and rarefaction----
 
